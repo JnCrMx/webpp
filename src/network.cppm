@@ -53,8 +53,17 @@ public:
             }, true};
             response_text(res.handle(), callback);
         }
+        text_awaiter(text_awaiter&& other) : coro::generic_awaiter<std::string>{std::move(other)} {
+            callback->replace([this](js_handle data) {
+                result = std::string{reinterpret_cast<const char*>(data)};
+                try_resume();
+            });
+        }
     };
     text_awaiter text() {
+        return text_awaiter{*this};
+    }
+    text_awaiter co_text() {
         return text_awaiter{*this};
     }
 };
@@ -74,6 +83,12 @@ struct fetch_awaiter : generic_awaiter<response> {
             try_resume();
         }, true};
         webpp::fetch(url.data(), url.size(), callback);
+    }
+    fetch_awaiter(fetch_awaiter&& other) : generic_awaiter<response>{std::move(other)} {
+        callback->replace([this](js_handle data) {
+            result = response{data};
+            try_resume();
+        });
     }
 };
 export using fetch = fetch_awaiter;

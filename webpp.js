@@ -138,8 +138,7 @@ export const instantiateStreaming = async (source) => {
             response_text: (response_index, callback) => {
                 const response = js_objects[response_index];
                 response.text().then(text => {
-                    const [str_ptr, len] = copy_string(instance, text);
-                    invoke_callback(callback, str_ptr);
+                    invoke_callback(callback, copy_string_null(instance, text));
                 });
             }
         },

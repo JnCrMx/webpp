@@ -13,6 +13,9 @@ namespace webpp {
             void abandon() {
                 callback = nullptr;
             }
+            void replace(event_callback new_callback) {
+                callback = new_callback;
+            }
             callback_data(event_callback callback, bool once) : callback{callback}, once{once} {}
         private:
             friend void callback(void* ptr, js_handle data);

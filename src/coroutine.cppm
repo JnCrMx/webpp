@@ -3,6 +3,8 @@ export module webpp:coroutine;
 import std;
 import :event_loop;
 
+import :basic;
+
 namespace webpp::coro {
 
 export template<typename Return>
@@ -19,11 +21,13 @@ struct coroutine : std::coroutine_handle<promise<Return>> {
     }
 
     template<typename T>
-    std::coroutine_handle<> await_suspend(std::coroutine_handle<T> caller) const noexcept {
+    bool await_suspend(std::coroutine_handle<T> caller) const noexcept {
         this->promise().caller = caller;
-        return *this;
+        return true;
     }
-    bool await_ready() const noexcept { return false; }
+    bool await_ready() const noexcept {
+        return this->done();
+    }
 
     auto await_resume() {
         if constexpr (std::is_same_v<Return, void>) {
@@ -42,7 +46,9 @@ struct final_awaiter {
         if(caller) {
             return caller;
         } else {
-            handle.destroy();
+            if(handle.promise().self_destruct) {
+                handle.destroy();
+            }
             return std::noop_coroutine();
         }
     }
@@ -52,8 +58,9 @@ struct final_awaiter {
 template<typename Return>
 struct promise_base {
     std::coroutine_handle<> caller;
+    bool self_destruct = false;
 
-    std::suspend_always initial_suspend() noexcept { return {}; }
+    std::suspend_never initial_suspend() noexcept { return {}; }
     final_awaiter<Return> final_suspend() noexcept { return {}; }
     void unhandled_exception() noexcept {}
 };
@@ -90,14 +97,7 @@ coroutine<void> when_all(coroutine<Returns>&&... coros) {
 
 export template<typename Return>
 void submit(coroutine<Return>&& coro) {
-    coro.resume();
-}
-
-export template<typename Return>
-void submit_next(coroutine<Return>&& coro) {
-    set_timeout(std::chrono::milliseconds{0}, [coro = std::move(coro)](std::string_view) {
-        coro.resume();
-    });
+    coro.promise().self_destruct = true;
 }
 
 export struct timeout {
@@ -121,11 +121,83 @@ export auto next_tick() {
 }
 
 template<typename T>
+concept awaitable = requires(T t) {
+    { t.await_ready() };
+    { t.await_suspend(std::declval<std::coroutine_handle<>>()) };
+    { t.await_resume() };
+};
+
+
+export template<typename First, typename SecondFunc>
+struct chain_awaiter {
+    using FirstReturn = decltype(std::declval<First>().await_resume());
+    using Second = std::invoke_result_t<SecondFunc, FirstReturn&&>;
+    using SecondReturn = decltype(std::declval<Second>().await_resume());
+
+    std::unique_ptr<First> first;
+    coroutine<SecondReturn> callback;
+
+    std::coroutine_handle<> suspend_return;
+
+    chain_awaiter(First&& first, SecondFunc&& second) : first(std::make_unique<First>(std::move(first))) {
+        callback = [](SecondFunc fn, First* first) -> coroutine<SecondReturn> {
+            co_await std::suspend_always{};
+            co_return co_await fn(first->await_resume());
+        }(std::move(second), this->first.get());
+        if constexpr (std::is_same_v<decltype(this->first->await_suspend(callback)), bool>) {
+            suspend_return = this->first->await_suspend(callback) ? std::noop_coroutine() : std::coroutine_handle<>{};
+        } else {
+            suspend_return = this->first->await_suspend(callback);
+        }
+    }
+    chain_awaiter(const chain_awaiter&) = delete;
+    chain_awaiter(chain_awaiter&& other) : first(std::move(other.first)), callback(std::move(other.callback)), suspend_return(other.suspend_return) {
+        other.callback = coroutine<SecondReturn>{};
+        other.suspend_return = std::noop_coroutine();
+    }
+
+    std::coroutine_handle<> await_suspend(std::coroutine_handle<> handle) noexcept {
+        if(callback.await_ready()) {
+            return handle;
+        }
+        callback.promise().caller = handle;
+
+        if(first->await_ready()) {
+            return std::noop_coroutine();
+        }
+        return std::noop_coroutine();
+    }
+
+    bool await_ready() const noexcept {
+        return callback.await_ready();
+    }
+    auto await_resume() noexcept {
+        return callback.await_resume();
+    }
+
+    template<typename Func>
+    auto then(this auto&& self, Func&& next) {
+        using Ret = std::invoke_result_t<Func, SecondReturn&&>;
+        if constexpr (awaitable<Ret>) {
+            return chain_awaiter<std::decay_t<decltype(self)>, Func>(std::move(self), std::move(next));
+        } else {
+            static_assert(false, "Can only chain awaitables");
+        }
+    }
+};
+
+template<typename T>
 struct generic_awaiter {
     std::coroutine_handle<> handle;
     callback_data* callback;
     T result;
     bool done = false;
+
+    generic_awaiter() = default;
+    generic_awaiter(const generic_awaiter&) = delete;
+    generic_awaiter(generic_awaiter&& other) : handle(other.handle), callback(other.callback), result(std::move(other.result)), done(other.done) {
+        other.done = true;
+    }
 
     ~generic_awaiter() {
         if(!done) {
@@ -148,6 +220,20 @@ struct generic_awaiter {
     T await_resume() noexcept {
         return std::move(result);
     }
+
+    template<typename Func>
+    auto then(this auto&& self, Func&& next) {
+        using Ret = std::invoke_result_t<Func, T&&>;
+        if constexpr (awaitable<Ret>) {
+            return chain_awaiter<std::decay_t<decltype(self)>, Func>(std::move(self), std::move(next));
+        } else {
+            static_assert(false, "Can only chain awaitables");
+        }
+    }
 };
 
+}
+
+namespace webpp {
+    export using coro::coroutine;
 }
