@@ -7,7 +7,7 @@ namespace webpp {
     [[clang::import_module("webpp"), clang::import_name("set_timeout")]]
     void set_timeout(unsigned long millis, void* callback_data);
 
-    export using event_callback = std::function<void(js_handle)>;
+    export using event_callback = std::function<void(js_handle, std::string_view)>;
     export class callback_data {
         public:
             void abandon() {
@@ -18,17 +18,17 @@ namespace webpp {
             }
             callback_data(event_callback callback, bool once) : callback{callback}, once{once} {}
         private:
-            friend void callback(void* ptr, js_handle data);
+            friend void callback(void* ptr, js_handle data, const char* string, std::size_t length);
 
             event_callback callback;
             bool once = false;
     };
 
     [[clang::export_name("webpp::callback")]]
-    void callback(void* ptr, js_handle data) {
+    void callback(void* ptr, js_handle data, const char* string, std::size_t length) {
         callback_data* cb = static_cast<callback_data*>(ptr);
         if(cb->callback) {
-            cb->callback(data);
+            cb->callback(data, std::string_view{string, length});
         }
         if(cb->once) {
             delete cb;
@@ -36,7 +36,7 @@ namespace webpp {
     }
 
     export callback_data* set_timeout(std::chrono::milliseconds duration, std::function<void()> callback) {
-        callback_data* data = new callback_data{[f = std::move(callback)](js_handle data) {
+        callback_data* data = new callback_data{[f = std::move(callback)](js_handle, std::string_view) {
             f();
         }, true};
         set_timeout(duration.count(), data);

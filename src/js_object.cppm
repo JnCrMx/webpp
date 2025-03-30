@@ -2,6 +2,7 @@ export module webpp:js_object;
 
 import std;
 import :errors;
+import :strings;
 
 namespace webpp {
 
@@ -37,8 +38,17 @@ error_code set_property_undefined(js_handle handle, const char* name, std::size_
 [[clang::import_module("webpp"), clang::import_name("set_property_object")]]
 error_code set_property_object(js_handle handle, const char* name, std::size_t name_len, js_handle value);
 
+[[clang::import_module("webpp"), clang::import_name("get_property_string")]]
+char* get_property_string(js_handle handle, const char* name, std::size_t name_len);
+
 [[clang::import_module("webpp"), clang::import_name("get_property_bool")]]
 bool get_property_bool(js_handle handle, const char* name, std::size_t name_len);
+
+[[clang::import_module("webpp"), clang::import_name("get_property_int")]]
+std::int32_t get_property_int(js_handle handle, const char* name, std::size_t name_len);
+
+[[clang::import_module("webpp"), clang::import_name("get_property_float")]]
+float get_property_float(js_handle handle, const char* name, std::size_t name_len);
 
 [[clang::import_module("webpp"), clang::import_name("get_property_object")]]
 js_handle get_property_object(js_handle handle, const char* name, std::size_t name_len);
@@ -120,6 +130,26 @@ public:
     }
 
     template<typename T>
+    std::expected<T, error_code> get_property(std::string_view property) {
+        if constexpr (std::is_same_v<T, bool>) {
+            return get_property_bool(m_handle, property.data(), property.size());
+        } else if constexpr (std::is_same_v<T, std::int32_t>) {
+            return get_property_int(m_handle, property.data(), property.size());
+        } else if constexpr (std::is_same_v<T, float>) {
+            return get_property_float(m_handle, property.data(), property.size());
+        } else if constexpr (create_from_handle<T>) {
+            return T::create(get_property_object(m_handle, property.data(), property.size()));
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            char* cstr = get_property_string(m_handle, property.data(), property.size());
+            std::string str{cstr};
+            delete_string(cstr);
+            return str;
+        } else {
+            static_assert(false, "Unsupported type");
+        }
+    }
+
+    template<typename T>
     std::expected<T, error_code> as() {
         if constexpr (create_from_handle<T>) {
             auto res = T::create(m_handle);
@@ -190,6 +220,15 @@ export class js_property_proxy {
                 return T::create(get_property_object(m_handle, m_name.data(), m_name.size()));
             } else if constexpr (std::is_same_v<T, bool>) {
                 return get_property_bool(m_handle, m_name.data(), m_name.size());
+            } else if constexpr (std::is_same_v<T, std::int32_t>) {
+                return get_property_int(m_handle, m_name.data(), m_name.size());
+            } else if constexpr (std::is_same_v<T, float>) {
+                return get_property_float(m_handle, m_name.data(), m_name.size());
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                char* cstr = get_property_string(m_handle, m_name.data(), m_name.size());
+                std::string str{cstr};
+                delete_string(cstr);
+                return str;
             } else {
                 static_assert(false, "Unsupported type");
             }

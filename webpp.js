@@ -66,8 +66,8 @@ export const instantiateStreaming = async (source) => {
         return obj[prop];
     }
 
-    const invoke_callback = (callback, arg) => {
-        instance.exports["webpp::callback"](callback, arg);
+    const invoke_callback = (callback, handle, ptr, len) => {
+        instance.exports["webpp::callback"](callback, handle, ptr, len);
     }
 
 
@@ -122,23 +122,34 @@ export const instantiateStreaming = async (source) => {
             set_property_null: (obj_index, name_ptr, name_len) => { set_property_generic(obj_index, name_ptr, name_len, null); },
             set_property_undefined: (obj_index, name_ptr, name_len) => { set_property_generic(obj_index, name_ptr, name_len, undefined); },
             set_property_object: (obj_index, name_ptr, name_len, value_index) => { set_property_generic(obj_index, name_ptr, name_len, js_objects[value_index]); },
+            get_property_string: (obj_index, name_ptr, name_len) => { return copy_string_null(instance, get_property_generic(obj_index, name_ptr, name_len)); },
             get_property_object: (obj_index, name_ptr, name_len) => { return create_object_ref(get_property_generic(obj_index, name_ptr, name_len)); },
             get_property_int: get_property_generic,
             get_property_float: get_property_generic,
             get_property_bool: get_property_generic,
             set_timeout: (timeout, callback) => {
                 setTimeout(() => {
-                    invoke_callback(callback, 0);
+                    invoke_callback(callback, 0, 0, 0);
                 }, timeout);
             },
             fetch: (url_ptr, url_len, callback) => {
                 fetch(get_string(instance, url_ptr, url_len))
-                    .then(response => invoke_callback(callback, create_object_ref(response)));
+                    .then(response => invoke_callback(callback, create_object_ref(response), 0, 0));
             },
             response_text: (response_index, callback) => {
                 const response = js_objects[response_index];
                 response.text().then(text => {
-                    invoke_callback(callback, copy_string_null(instance, text));
+                    const [ptr, len] = copy_string(instance, text);
+                    invoke_callback(callback, 0, ptr, len);
+                    delete_string(instance, ptr);
+                });
+            },
+            response_bytes: (response_index, callback) => {
+                const response = js_objects[response_index];
+                response.bytes().then(bytes => {
+                    const [ptr, len] = copy_data(instance, bytes);
+                    invoke_callback(callback, 0, ptr, len);
+                    delete_string(instance, ptr);
                 });
             }
         },
