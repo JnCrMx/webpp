@@ -134,38 +134,18 @@ struct chain_awaiter {
     using Second = std::invoke_result_t<SecondFunc, FirstReturn&&>;
     using SecondReturn = decltype(std::declval<Second>().await_resume());
 
-    std::unique_ptr<First> first;
     coroutine<SecondReturn> callback;
 
-    std::coroutine_handle<> suspend_return;
-
-    chain_awaiter(First&& first, SecondFunc&& second) : first(std::make_unique<First>(std::move(first))) {
-        callback = [](SecondFunc fn, First* first) -> coroutine<SecondReturn> {
-            co_await std::suspend_always{};
-            co_return co_await fn(first->await_resume());
-        }(std::move(second), this->first.get());
-        if constexpr (std::is_same_v<decltype(this->first->await_suspend(callback)), bool>) {
-            suspend_return = this->first->await_suspend(callback) ? std::noop_coroutine() : std::coroutine_handle<>{};
-        } else {
-            suspend_return = this->first->await_suspend(callback);
-        }
+    chain_awaiter(First&& first, SecondFunc&& second) {
+        callback = [](First first, SecondFunc second) -> coroutine<SecondReturn> {
+            co_return co_await second(co_await first);
+        }(std::move(first), std::move(second));
     }
     chain_awaiter(const chain_awaiter&) = delete;
-    chain_awaiter(chain_awaiter&& other) : first(std::move(other.first)), callback(std::move(other.callback)), suspend_return(other.suspend_return) {
-        other.callback = coroutine<SecondReturn>{};
-        other.suspend_return = std::noop_coroutine();
-    }
+    chain_awaiter(chain_awaiter&& other) : callback(std::move(other.callback)) {}
 
-    std::coroutine_handle<> await_suspend(std::coroutine_handle<> handle) noexcept {
-        if(callback.await_ready()) {
-            return handle;
-        }
-        callback.promise().caller = handle;
-
-        if(first->await_ready()) {
-            return std::noop_coroutine();
-        }
-        return std::noop_coroutine();
+    auto await_suspend(std::coroutine_handle<> handle) noexcept {
+        return callback.await_suspend(handle);
     }
 
     bool await_ready() const noexcept {
@@ -235,5 +215,5 @@ struct generic_awaiter {
 }
 
 namespace webpp {
-    export using coro::coroutine;
+    export using coro::coroutine; // NOLINT: We are exporting this under a different name and it is actually used.
 }
