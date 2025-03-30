@@ -1,0 +1,7 @@
+add_executable(simple simple.cpp)
+target_link_libraries(simple PRIVATE webpp::webpp)
+target_link_options(simple PRIVATE -Wl,--no-entry)
+target_link_options(simple PRIVATE -nostartfiles)
+target_compile_features(simple PRIVATE cxx_std_26)
+target_compile_options(simple PRIVATE -fno-rtti -fno-exceptions)
+set_target_properties(simple PROPERTIES SUFFIX ".wasm")

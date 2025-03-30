@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Exampley</title>
+</head>
+
+<body>
+    <script type="module">
+        import { instantiateStreaming } from "../webpp.js";
+
+        let new_element_cache={};
+        function getElementByIdWithCache(id) {
+            if(new_element_cache[id]) {
+                return new_element_cache[id];
+            }
+            return document.getElementById(id);
+        }
+
+        window.handleEvent = function(element, event) {
+            let instance = window.wasmInstance;
+
+            const ptr = Number(element.getAttribute("data-callback"));
+            const [str_ptr, len] = copy_string(instance, stringifyEvent(event));
+            instance.exports["webpp::callback"](ptr, str_ptr, len);
+            delete_string(instance, str_ptr);
+        }
+
+        const errorCodes = {
+            success: 0,
+            element_not_found: 1,
+            property_not_found: 2,
+        }
+
+        async function init() {
+            const { instance } = await instantiateStreaming(fetch("./simple.wasm"));
+            console.log(instance.exports)
+            instance.exports._initialize();
+            instance.exports.main();
+
+            window.wasmInstance = instance;
+        }
+
+        init();
+    </script>
+    <main id="main">
+
+    </main>
+</body>
+
+</html>
