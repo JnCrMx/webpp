@@ -14,6 +14,6 @@ set(SOURCES
 
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
 target_sources(${PROJECT_NAME} PUBLIC FILE_SET CXX_MODULES FILES ${MODULE_SOURCES})
-target_link_libraries(${PROJECT_NAME} PRIVATE stdModule)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${stdModule})
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_26)
 target_compile_options(${PROJECT_NAME} PRIVATE -fno-rtti -fno-exceptions)

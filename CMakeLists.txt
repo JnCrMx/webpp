@@ -16,14 +16,17 @@ if(${PROJECT_NAME}_IS_TOP_LEVEL)
 endif()
 
 option(${PROJECT_NAME}_BUILD_EXAMPLES "Build examples" ${${PROJECT_NAME}_IS_TOP_LEVEL})
+option(${PROJECT_NAME}_BUILD_STD_MODULE "Build std module" ${${PROJECT_NAME}_IS_TOP_LEVEL})
+set(${PROJECT_NAME}_STD_MODULE_NAME stdModule CACHE STRING "Name of the std module target")
 
-add_library(stdModule STATIC)
-target_sources(stdModule PUBLIC FILE_SET CXX_MODULES BASE_DIRS /usr/lib/llvm-19/share/libc++/v1/
+set(stdModule ${${PROJECT_NAME}_STD_MODULE_NAME})
+add_library(${stdModule} STATIC)
+target_sources(${stdModule} PUBLIC FILE_SET CXX_MODULES BASE_DIRS /usr/lib/llvm-19/share/libc++/v1/
     FILES /usr/lib/llvm-19/share/libc++/v1/std.cppm)
-target_compile_features(stdModule PUBLIC cxx_std_26)
-target_compile_options(stdModule PRIVATE -Wno-reserved-identifier)
-target_compile_options(stdModule PRIVATE -fno-rtti -fno-exceptions)
-target_compile_definitions(stdModule PRIVATE _LIBCPP_CSETJMP _LIBCPP_CSIGNAL)
+target_compile_features(${stdModule} PUBLIC cxx_std_26)
+target_compile_options(${stdModule} PRIVATE -Wno-reserved-identifier)
+target_compile_options(${stdModule} PRIVATE -fno-rtti -fno-exceptions)
+target_compile_definitions(${stdModule} PRIVATE _LIBCPP_CSETJMP _LIBCPP_CSIGNAL)
 
 add_subdirectory(src)
 
