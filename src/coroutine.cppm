@@ -88,11 +88,23 @@ struct promise<void> : promise_base<void>
     }
 };
 
-export template<typename... Returns>
+template<typename T>
+using transformed_type_t = std::conditional_t<std::is_void_v<T>, std::monostate, T>;
+
+template<typename Awaitable>
+auto transform_type(Awaitable&& value) -> coroutine<transformed_type_t<decltype(value.await_resume())>> {
+    if constexpr (std::is_void_v<decltype(value.await_resume())>) {
+        co_await value;
+        co_return std::monostate{};
+    } else {
+        co_return co_await value;
+    }
+}
+
+export template<typename... Awaitables>
 [[nodiscard("This is a coroutine, you must either co_await or submit it.")]]
-coroutine<void> when_all(coroutine<Returns>&&... coros) {
-    (co_await coros, ...);
-    co_return;
+auto when_all(Awaitables&&... coros) -> coroutine<std::tuple<transformed_type_t<decltype(coros.await_resume())>...>> {
+    co_return std::tuple{co_await transform_type(coros)...};
 }
 
 export template<typename Return>

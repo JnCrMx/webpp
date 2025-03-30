@@ -52,11 +52,13 @@ int main() {
             })
             .then([](std::string text) -> webpp::coroutine<std::string> { co_return text + "!"; })
             .then([](std::string text) -> webpp::coroutine<std::string> { co_return text + "!"; });
-        auto text5 = []() -> webpp::coroutine<std::string> {
+        auto sleep = []() -> webpp::coroutine<void> {
             co_await webpp::coro::timeout{std::chrono::seconds(5)};
-            co_return "Hello World";
         }();
-        webpp::log("Using chained awaitables: {} and {} and {}", co_await text3, co_await text4, co_await text5);
+        auto [a, b, c] = co_await webpp::coro::when_all(std::move(text3), std::move(text4), std::move(sleep));
+        webpp::log("Using chained awaitables: {} and {}", a, b);
+
+        webpp::js_object::dump_all();
     }());
 }
 
