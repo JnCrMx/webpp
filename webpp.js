@@ -86,8 +86,8 @@ export const instantiateStreaming = async (source) => {
             },
             eval: (ptr, len) => {
                 const res = eval(get_string(instance, ptr, len));
-                const str_ptr = copy_string_null(instance, res.toString());
-                return str_ptr;
+                const return_obj = {result: res};
+                return create_object_ref(return_obj);
             },
             get_element_by_id: (ptr, len) => {
                 const id = get_string(instance, ptr, len);
