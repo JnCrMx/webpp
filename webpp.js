@@ -41,7 +41,7 @@ function delete_string(instance, ptr) {
 export const instantiateStreaming = async (source) => {
     let instance = null;
     let module = null;
-    let js_objects = [null];
+    let js_objects = [null, window, document];
 
     const create_object_ref = (obj) => {
         js_objects.push(obj);
@@ -158,7 +158,19 @@ export const instantiateStreaming = async (source) => {
                     invoke_callback(callback, 0, ptr, len);
                     delete_string(instance, ptr);
                 });
-            }
+            },
+            event_prevent_default: (event_index) => {
+                const event = js_objects[event_index];
+                event.preventDefault();
+            },
+            event_stop_propagation: (event_index) => {
+                const event = js_objects[event_index];
+                event.stopPropagation();
+            },
+            event_stop_immediate_propagation: (event_index) => {
+                const event = js_objects[event_index];
+                event.stopImmediatePropagation();
+            },
         },
         wasi_snapshot_preview1: {
             fd_close: () => { console.log("fd_close"); },

@@ -3,8 +3,6 @@ export module webpp:coroutine;
 import std;
 import :event_loop;
 
-import :basic;
-
 namespace webpp::coro {
 
 export template<typename Return>

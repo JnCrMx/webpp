@@ -10,6 +10,15 @@ namespace webpp {
 [[clang::import_module("webpp"), clang::import_name("set_timeout")]]
 void set_timeout(unsigned long millis, void* callback_data);
 
+[[clang::import_module("webpp"), clang::import_name("event_prevent_default")]]
+void event_prevent_default(js_handle handle);
+
+[[clang::import_module("webpp"), clang::import_name("event_stop_propagation")]]
+void event_stop_propagation(js_handle handle);
+
+[[clang::import_module("webpp"), clang::import_name("event_stop_immediate_propagation")]]
+void event_stop_immediate_propagation(js_handle handle);
+
 export using event_callback = std::function<void(js_handle, std::string_view)>;
 export class callback_data {
     public:
@@ -78,6 +87,16 @@ public:
     PROPERTY_READ_ONLY(target, "target", js_object);
     PROPERTY_READ_ONLY(time_stamp, "timeStamp", int);
     PROPERTY_READ_ONLY(type, "type", std::string);
+
+    void prevent_default() {
+        event_prevent_default(handle());
+    }
+    void stop_propagation() {
+        event_stop_propagation(handle());
+    }
+    void stop_immediate_propagation() {
+        event_stop_immediate_propagation(handle());
+    }
 };
 
 }

@@ -27,6 +27,13 @@ int main() {
         co_return;
     }());
 
+    webpp::document.add_event_listener("click", [](webpp::event e) {
+        webpp::log("Document clicked with callback: {}", e.type());
+    });
+    webpp::window.add_event_listener("click", [](webpp::event e) {
+        webpp::log("Window clicked with callback: {}", e.type());
+    });
+
     webpp::set_timeout(std::chrono::seconds(1), []() {
         webpp::log("Hello World");
     });

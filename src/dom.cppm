@@ -33,7 +33,38 @@ std::set<std::string> parse_classes(std::string_view classes) {
     return result;
 }
 
-export class element : public js_object{
+struct event_awaiter : coro::generic_awaiter<webpp::event> {
+    auto create_callback() {
+        return [this](js_handle handle, std::string_view) {
+            complete(webpp::event{handle});
+        };
+    }
+
+    event_awaiter(js_handle handle, std::string_view event) {
+        callback = new callback_data{create_callback(), true};
+        webpp::add_event_listener(handle, event.data(), event.size(), callback, true);
+    }
+    event_awaiter(event_awaiter&& other) : coro::generic_awaiter<webpp::event>{std::move(other)} {
+        callback->replace(create_callback());
+    }
+};
+
+struct event_target {
+    callback_data* add_event_listener(this const auto& self, std::string_view event, std::function<void(webpp::event)>&& callback, bool once = false) {
+        callback_data* data = new callback_data{[callback = std::move(callback)](js_handle handle, std::string_view){
+            callback(webpp::event(handle));
+        }, once};
+        webpp::add_event_listener(self.handle(), event.data(), event.size(), data, once);
+        return data;
+    }
+
+    event_awaiter co_event(this const auto& self, std::string_view event) {
+        return event_awaiter{self.handle(), event};
+    }
+    event_awaiter event(this const auto& self, std::string_view event) { return self.co_event(event); } // for convenience
+};
+
+export class element : public js_object, public event_target {
 public:
     static std::expected<element, error_code> create(js_handle handle) {
         if(!check_instanceof(handle, "HTMLElement")) {
@@ -59,6 +90,8 @@ public:
     PROPERTY_READ_ONLY(client_left,   "clientLeft",   int);
     PROPERTY_READ_ONLY(offset_width,  "offsetWidth",  int);
     PROPERTY_READ_ONLY(offset_height, "offsetHeight", int);
+    PROPERTY_READ_ONLY(offset_top,    "offsetTop",    int);
+    PROPERTY_READ_ONLY(offset_left,   "offsetLeft",   int);
 
     PROPERTY_READ_WRITE(inner_text, "innerText", std::string);
     PROPERTY_READ_WRITE(inner_html, "innerHTML", std::string);
@@ -66,6 +99,7 @@ public:
     PROPERTY_READ_ONLY(tag_name, "tagName", std::string);
     PROPERTY_READ_WRITE(id, "id", std::string);
     PROPERTY_READ_WRITE(class_name, "className", std::string);
+    PROPERTY_READ_ONLY(style, "style", js_object);
 
     void append_child(const element& child) {
         ::webpp::append_child(handle(), child.handle());
@@ -102,33 +136,6 @@ public:
         }
         this->classes(classes);
     }
-
-    void add_event_listener(std::string_view event, std::function<void(webpp::event)>&& callback, bool once = false) {
-        callback_data* data = new callback_data{[callback = std::move(callback)](js_handle handle, std::string_view){
-            callback(webpp::event(handle));
-        }, once};
-        webpp::add_event_listener(handle(), event.data(), event.size(), data, once);
-    }
-
-    struct event_awaiter : coro::generic_awaiter<webpp::event> {
-        auto create_callback() {
-            return [this](js_handle handle, std::string_view) {
-                complete(webpp::event{handle});
-            };
-        }
-
-        event_awaiter(element& elem, std::string_view event) {
-            callback = new callback_data{create_callback(), true};
-            webpp::add_event_listener(elem.handle(), event.data(), event.size(), callback, true);
-        }
-        event_awaiter(event_awaiter&& other) : coro::generic_awaiter<webpp::event>{std::move(other)} {
-            callback->replace(create_callback());
-        }
-    };
-    event_awaiter co_event(std::string_view event) {
-        return event_awaiter{*this, event};
-    }
-    event_awaiter event(std::string_view event) { return co_event(event); } // for convenience
 };
 
 export std::expected<element, error_code> get_element_by_id(std::string_view id) {
@@ -137,5 +144,15 @@ export std::expected<element, error_code> get_element_by_id(std::string_view id)
 export std::expected<element, error_code> create_element(std::string_view tag) {
     return element(create_element(tag.data(), tag.size()));
 }
+
+struct window_t : public event_target {
+    constexpr static js_handle handle() {return 1;}
+};
+export inline const window_t window;
+
+struct document_t : public event_target {
+    constexpr static js_handle handle() {return 2;}
+};
+export inline const document_t document;
 
 }
