@@ -112,6 +112,13 @@ export const instantiateStreaming = async (source) => {
                 const child = js_objects[child_index];
                 parent.removeChild(child);
             },
+            add_event_listener: (elem_index, event_ptr, event_len, callback, once) => {
+                const elem = js_objects[elem_index];
+                const event = get_string(instance, event_ptr, event_len);
+                elem.addEventListener(event, (e) => {
+                    invoke_callback(callback, create_object_ref(e), 0, 0);
+                }, { once: once });
+            },
             log: (ptr, len) => {
                 console.log(get_string(instance, ptr, len));
             },

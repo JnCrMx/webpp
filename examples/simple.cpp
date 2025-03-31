@@ -13,9 +13,19 @@ int main() {
 
     webpp::log("Hello World");
 
-    auto div = *webpp::create_element("div");
-    div.inner_text("Hello World");
-    webpp::get_element_by_id("main")->append_child(div);
+    auto button = *webpp::create_element("button");
+    button.id("my-button");
+    button.inner_text("Hello World");
+    button.add_event_listener("click", [](webpp::event e) {
+        webpp::log("Button clicked with callback: {} on {}", e.type(), e.target().as<webpp::element>()->id());
+    }, true);
+    webpp::get_element_by_id("main")->append_child(button);
+
+    webpp::coro::submit([]() -> webpp::coroutine<void> {
+        auto event = co_await webpp::get_element_by_id("my-button")->co_event("click");
+        webpp::log("Button clicked with coroutine: {} on {}", event.type(), event.target().as<webpp::element>()->id());
+        co_return;
+    }());
 
     webpp::set_timeout(std::chrono::seconds(1), []() {
         webpp::log("Hello World");

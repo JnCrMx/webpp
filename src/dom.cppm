@@ -1,6 +1,10 @@
 export module webpp:dom;
 
 import :js_object;
+import :event_loop;
+import :coroutine;
+
+#include "macros.hpp"
 
 namespace webpp {
 
@@ -15,6 +19,19 @@ void append_child(js_handle parent, js_handle child);
 
 [[clang::import_module("webpp"), clang::import_name("remove_child")]]
 void remove_child(js_handle parent, js_handle child);
+
+[[clang::import_module("webpp"), clang::import_name("add_event_listener")]]
+void add_event_listener(js_handle handle, const char* event, std::size_t event_size, callback_data* data, bool once);
+
+std::set<std::string> parse_classes(std::string_view classes) {
+    std::set<std::string> result;
+    std::istringstream ss{std::string{classes}};
+    std::string token;
+    while(std::getline(ss, token, ' ')) {
+        result.insert(token);
+    }
+    return result;
+}
 
 export class element : public js_object{
 public:
@@ -36,18 +53,82 @@ public:
         return *this;
     }
 
-    void inner_text(std::string_view text) {
-        (*this)["innerText"] = text;
-    }
-    void inner_html(std::string_view html) {
-        (*this)["innerHTML"] = html;
-    }
+    PROPERTY_READ_ONLY(client_width,  "clientWidth",  int);
+    PROPERTY_READ_ONLY(client_height, "clientHeight", int);
+    PROPERTY_READ_ONLY(client_top,    "clientTop",    int);
+    PROPERTY_READ_ONLY(client_left,   "clientLeft",   int);
+    PROPERTY_READ_ONLY(offset_width,  "offsetWidth",  int);
+    PROPERTY_READ_ONLY(offset_height, "offsetHeight", int);
+
+    PROPERTY_READ_WRITE(inner_text, "innerText", std::string);
+    PROPERTY_READ_WRITE(inner_html, "innerHTML", std::string);
+
+    PROPERTY_READ_ONLY(tag_name, "tagName", std::string);
+    PROPERTY_READ_WRITE(id, "id", std::string);
+    PROPERTY_READ_WRITE(class_name, "className", std::string);
+
     void append_child(const element& child) {
         ::webpp::append_child(handle(), child.handle());
     }
     void remove_child(const element& child) {
         ::webpp::remove_child(handle(), child.handle());
     }
+
+    std::set<std::string> classes() {
+        return parse_classes(class_name());
+    }
+    void classes(const std::set<std::string>& classes) {
+        class_name(std::accumulate(classes.begin(), classes.end(), std::string{}, [](const std::string& a, const std::string& b) {
+            return a + " " + b;
+        }));
+    }
+
+    void add_class(const std::string& name) {
+        auto classes = this->classes();
+        classes.insert(name);
+        this->classes(classes);
+    }
+    void remove_class(const std::string& name) {
+        auto classes = this->classes();
+        classes.erase(name);
+        this->classes(classes);
+    }
+    void toggle_class(const std::string& name) {
+        auto classes = this->classes();
+        if(classes.contains(name)) {
+            classes.erase(name);
+        } else {
+            classes.insert(name);
+        }
+        this->classes(classes);
+    }
+
+    void add_event_listener(std::string_view event, std::function<void(webpp::event)>&& callback, bool once = false) {
+        callback_data* data = new callback_data{[callback = std::move(callback)](js_handle handle, std::string_view){
+            callback(webpp::event(handle));
+        }, once};
+        webpp::add_event_listener(handle(), event.data(), event.size(), data, once);
+    }
+
+    struct event_awaiter : coro::generic_awaiter<webpp::event> {
+        auto create_callback() {
+            return [this](js_handle handle, std::string_view) {
+                complete(webpp::event{handle});
+            };
+        }
+
+        event_awaiter(element& elem, std::string_view event) {
+            callback = new callback_data{create_callback(), true};
+            webpp::add_event_listener(elem.handle(), event.data(), event.size(), callback, true);
+        }
+        event_awaiter(event_awaiter&& other) : coro::generic_awaiter<webpp::event>{std::move(other)} {
+            callback->replace(create_callback());
+        }
+    };
+    event_awaiter co_event(std::string_view event) {
+        return event_awaiter{*this, event};
+    }
+    event_awaiter event(std::string_view event) { return co_event(event); } // for convenience
 };
 
 export std::expected<element, error_code> get_element_by_id(std::string_view id) {

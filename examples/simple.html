@@ -28,12 +28,6 @@
             delete_string(instance, str_ptr);
         }
 
-        const errorCodes = {
-            success: 0,
-            element_not_found: 1,
-            property_not_found: 2,
-        }
-
         async function init() {
             const { instance } = await instantiateStreaming(fetch("./simple.wasm"));
             console.log(instance.exports)
