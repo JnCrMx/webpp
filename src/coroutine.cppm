@@ -197,6 +197,11 @@ struct generic_awaiter {
         }
     }
 
+    void complete(T&& result) {
+        this->result = std::move(result);
+        try_resume();
+    }
+
     void try_resume() {
         if(!done && handle) {
             handle.resume();
