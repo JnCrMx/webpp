@@ -102,6 +102,10 @@ export const instantiateStreaming = async (source) => {
                 const elem = document.createElement(tag);
                 return create_object_ref(elem);
             },
+            remove_element: (elem_index) => {
+                const elem = js_objects[elem_index];
+                elem.remove();
+            },
             append_child: (parent_index, child_index) => {
                 const parent = js_objects[parent_index];
                 const child = js_objects[child_index];

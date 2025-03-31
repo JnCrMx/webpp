@@ -13,9 +13,8 @@ int main() {
 
     webpp::log("Hello World");
 
-    auto button = *webpp::create_element("button");
+    auto button = webpp::create_element_from_html("<button>Click me!</button>").value();
     button.id("my-button");
-    button.inner_text("Hello World");
     button.add_event_listener("click", [](webpp::event e) {
         webpp::log("Button clicked with callback: {} on {}", e.type(), e.target().as<webpp::element>()->id());
     }, true);

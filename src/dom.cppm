@@ -14,6 +14,9 @@ js_handle get_element_by_id(const char* id, std::size_t len);
 [[clang::import_module("webpp"), clang::import_name("create_element")]]
 js_handle create_element(const char* tag, std::size_t len);
 
+[[clang::import_module("webpp"), clang::import_name("remove_element")]]
+void remove_element(js_handle handle);
+
 [[clang::import_module("webpp"), clang::import_name("append_child")]]
 void append_child(js_handle parent, js_handle child);
 
@@ -95,11 +98,14 @@ public:
 
     PROPERTY_READ_WRITE(inner_text, "innerText", std::string);
     PROPERTY_READ_WRITE(inner_html, "innerHTML", std::string);
+    PROPERTY_READ_WRITE(outer_html, "outerHTML", std::string);
 
     PROPERTY_READ_ONLY(tag_name, "tagName", std::string);
     PROPERTY_READ_WRITE(id, "id", std::string);
     PROPERTY_READ_WRITE(class_name, "className", std::string);
     PROPERTY_READ_ONLY(style, "style", js_object);
+
+    PROPERTY_READ_ONLY(first_child, "firstChild", element);
 
     void append_child(const element& child) {
         ::webpp::append_child(handle(), child.handle());
@@ -136,6 +142,10 @@ public:
         }
         this->classes(classes);
     }
+
+    void remove() {
+        webpp::remove_element(handle());
+    }
 };
 
 export std::expected<element, error_code> get_element_by_id(std::string_view id) {
@@ -143,6 +153,14 @@ export std::expected<element, error_code> get_element_by_id(std::string_view id)
 }
 export std::expected<element, error_code> create_element(std::string_view tag) {
     return element(create_element(tag.data(), tag.size()));
+}
+export std::expected<element, error_code> create_element_from_html(std::string_view html) {
+    auto t = create_element("template");
+    if(!t) {
+        return std::unexpected(t.error());
+    }
+    t->inner_html(html);
+    return (*t)["content"]["firstChild"].as<element>();
 }
 
 struct window_t : public event_target {
