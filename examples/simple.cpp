@@ -12,6 +12,7 @@ int main() {
     webpp::init();
 
     webpp::log("Hello World");
+    webpp::log("1 + 2 = {}", *webpp::eval("1 + 2")["result"].as<int>());
 
     auto button = webpp::create_element_from_html("<button>Click me!</button>").value();
     button.id("my-button");
