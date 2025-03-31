@@ -8,6 +8,20 @@ namespace webpp {
 
 using js_handle = std::int32_t;
 
+template<typename T>
+struct property_type_traits {
+    using type = T;
+    using get_type = T;
+    using set_type = const T&;
+};
+
+template<>
+struct property_type_traits<std::string> {
+    using type = std::string;
+    using get_type = std::string;
+    using set_type = std::string_view;
+};
+
 [[clang::import_module("webpp"), clang::import_name("release_js_object")]]
 void release_js_object(js_handle handle);
 
@@ -130,7 +144,7 @@ public:
     }
 
     template<typename T>
-    std::expected<T, error_code> get_property(std::string_view property) {
+    std::expected<T, error_code> get_property(std::string_view property) const {
         if constexpr (std::is_same_v<T, bool>) {
             return get_property_bool(m_handle, property.data(), property.size());
         } else if constexpr (std::is_same_v<T, std::int32_t>) {
