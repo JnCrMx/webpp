@@ -2,17 +2,6 @@ function get_string(instance, ptr, len) {
     const cArray = new Uint8Array(instance.exports.memory.buffer, ptr, len);
     return new TextDecoder().decode(cArray);
 }
-function stringifyEvent(e) {
-    const obj = {};
-    for (let k in e) {
-        obj[k] = e[k];
-    }
-    return JSON.stringify(obj, (k, v) => {
-        if (v instanceof Node) return 'Node';
-        if (v instanceof Window) return 'Window';
-        return v;
-    }, ' ');
-}
 function copy_string(instance, s) {
     const buffer = new TextEncoder().encode(s);
     const str_ptr = instance.exports["webpp::new_string"](buffer.length);
@@ -198,5 +187,14 @@ export const instantiateStreaming = async (source) => {
     ({ instance, module } = await WebAssembly.instantiateStreaming(
         source, import_object
     ));
-    return { instance, module };
+    return { instance, module, functions: {
+        create_object_ref,
+        release_object_ref,
+        invoke_callback,
+        get_string: (ptr, len) => { return get_string(instance, ptr, len); },
+        copy_string: (s) => {copy_string(instance, s);},
+        copy_data: (s) => {copy_data(instance, s);},
+        copy_string_null: (s) => {return copy_string_null(instance, s);},
+        delete_string: (ptr) => { delete_string(instance, ptr); },
+    } };
 }
