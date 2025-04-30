@@ -78,6 +78,10 @@ export const instantiateStreaming = async (source) => {
                 const return_obj = {result: res};
                 return create_object_ref(return_obj);
             },
+            create_object: () => {
+                const obj = {};
+                return create_object_ref(obj);
+            },
             get_element_by_id: (ptr, len) => {
                 const id = get_string(instance, ptr, len);
                 const elem = document.getElementById(id);
@@ -132,8 +136,8 @@ export const instantiateStreaming = async (source) => {
                     invoke_callback(callback, 0, 0, 0);
                 }, timeout);
             },
-            fetch: (url_ptr, url_len, callback) => {
-                fetch(get_string(instance, url_ptr, url_len))
+            fetch: (url_ptr, url_len, options, callback) => {
+                fetch(get_string(instance, url_ptr, url_len), js_objects[options])
                     .then(response => invoke_callback(callback, create_object_ref(response), 0, 0));
             },
             response_text: (response_index, callback) => {

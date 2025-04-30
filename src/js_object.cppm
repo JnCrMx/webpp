@@ -31,6 +31,9 @@ void dump_js_objects();
 [[clang::import_module("webpp"), clang::import_name("check_instanceof")]]
 bool check_instanceof(js_handle handle, const char* type, std::size_t len);
 
+[[clang::import_module("webpp"), clang::import_name("create_object")]]
+js_handle create_object();
+
 [[clang::import_module("webpp"), clang::import_name("set_property_string")]]
 error_code set_property_string(js_handle handle, const char* name, std::size_t name_len, const char* value, std::size_t value_len);
 
@@ -85,6 +88,9 @@ public:
 
     static std::expected<js_object, error_code> create(js_handle handle) {
         return js_object(handle);
+    }
+    static js_object create() {
+        return js_object(webpp::create_object());
     }
 
     js_object() = default;
@@ -141,6 +147,9 @@ public:
     }
     error_code set_property(std::string_view property, std::nullopt_t) {
         return set_property_undefined(m_handle, property.data(), property.size());
+    }
+    error_code set_property(std::string_view property, const js_object& value) {
+        return set_property_object(m_handle, property.data(), property.size(), value.handle());
     }
 
     template<typename T>
@@ -221,6 +230,10 @@ export class js_property_proxy {
         }
         js_property_proxy operator=(std::nullopt_t) {
             set_property_undefined(m_handle, m_name.data(), m_name.size());
+            return *this;
+        }
+        js_property_proxy operator=(const js_object& value) {
+            set_property_object(m_handle, m_name.data(), m_name.size(), value.handle());
             return *this;
         }
 
