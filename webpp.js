@@ -82,6 +82,11 @@ export const instantiateStreaming = async (source) => {
                 const obj = {};
                 return create_object_ref(obj);
             },
+            create_uint8array: (ptr, len) => {
+                const data = new Uint8Array(instance.exports.memory.buffer, ptr, len);
+                const arr = new Uint8Array(data);
+                return create_object_ref(arr);
+            },
             get_element_by_id: (ptr, len) => {
                 const id = get_string(instance, ptr, len);
                 const elem = document.getElementById(id);
