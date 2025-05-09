@@ -196,8 +196,8 @@ export const instantiateStreaming = async (source) => {
         release_object_ref,
         invoke_callback,
         get_string: (ptr, len) => { return get_string(instance, ptr, len); },
-        copy_string: (s) => {copy_string(instance, s);},
-        copy_data: (s) => {copy_data(instance, s);},
+        copy_string: (s) => { return copy_string(instance, s); },
+        copy_data: (s) => { return copy_data(instance, s); },
         copy_string_null: (s) => {return copy_string_null(instance, s);},
         delete_string: (ptr) => { delete_string(instance, ptr); },
     } };
