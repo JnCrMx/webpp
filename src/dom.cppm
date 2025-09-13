@@ -168,8 +168,17 @@ struct window_t : public event_target {
 };
 export inline const window_t window;
 
-struct document_t : public event_target {
+struct document_t : public js_object, event_target {
     constexpr static js_handle handle() {return 2;}
+
+    document_t() : js_object(handle()) {}
+    document_t(const document_t&) = delete;
+    document_t(document_t&& other) = delete;
+    ~document_t() {
+        __builtin_unreachable();
+    }
+
+    PROPERTY_READ_ONLY(document_element, "documentElement", element);
 };
 export inline const document_t document;
 

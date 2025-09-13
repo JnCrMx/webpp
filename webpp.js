@@ -78,6 +78,15 @@ export const instantiateStreaming = async (source) => {
                 const return_obj = {result: res};
                 return create_object_ref(return_obj);
             },
+            create_object: () => {
+                const obj = {};
+                return create_object_ref(obj);
+            },
+            create_uint8array: (ptr, len) => {
+                const data = new Uint8Array(instance.exports.memory.buffer, ptr, len);
+                const arr = new Uint8Array(data);
+                return create_object_ref(arr);
+            },
             get_element_by_id: (ptr, len) => {
                 const id = get_string(instance, ptr, len);
                 const elem = document.getElementById(id);
@@ -132,8 +141,8 @@ export const instantiateStreaming = async (source) => {
                     invoke_callback(callback, 0, 0, 0);
                 }, timeout);
             },
-            fetch: (url_ptr, url_len, callback) => {
-                fetch(get_string(instance, url_ptr, url_len))
+            fetch: (url_ptr, url_len, options, callback) => {
+                fetch(get_string(instance, url_ptr, url_len), js_objects[options])
                     .then(response => invoke_callback(callback, create_object_ref(response), 0, 0));
             },
             response_text: (response_index, callback) => {
@@ -192,8 +201,8 @@ export const instantiateStreaming = async (source) => {
         release_object_ref,
         invoke_callback,
         get_string: (ptr, len) => { return get_string(instance, ptr, len); },
-        copy_string: (s) => {copy_string(instance, s);},
-        copy_data: (s) => {copy_data(instance, s);},
+        copy_string: (s) => { return copy_string(instance, s); },
+        copy_data: (s) => { return copy_data(instance, s); },
         copy_string_null: (s) => {return copy_string_null(instance, s);},
         delete_string: (ptr) => { delete_string(instance, ptr); },
     } };

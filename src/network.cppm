@@ -9,7 +9,7 @@ import :coroutine;
 namespace webpp {
 
 [[clang::import_module("webpp"), clang::import_name("fetch")]]
-void fetch(const char* url, std::size_t url_size, void* callback_data);
+void fetch(const char* url, std::size_t url_size, js_handle options, void* callback_data);
 
 [[clang::import_module("webpp"), clang::import_name("response_text")]]
 void response_text(js_handle handle, void* callback_data);
@@ -79,9 +79,9 @@ public:
         }, true};
         response_text(handle(), data);
     }
-    void bytes(std::function<void(std::span<std::byte>)> callback) {
+    void bytes(std::function<void(std::span<const char>)> callback) {
         callback_data* data = new callback_data{[f = std::move(callback)](js_handle, std::string_view data) {
-            f({reinterpret_cast<std::byte*>(const_cast<char*>(data.data())), data.size()});
+            f({const_cast<char*>(data.data()), data.size()});
         }, true};
         response_bytes(handle(), data);
     }
@@ -106,11 +106,11 @@ public:
     }
     text_awaiter text() { return co_text(); } // for convenience
 
-    struct bytes_awaiter : coro::generic_awaiter<std::vector<std::byte>> {
+    struct bytes_awaiter : coro::generic_awaiter<std::vector<char>> {
         auto create_callback() {
             return [this](js_handle, std::string_view data) {
-                const std::byte* ptr = reinterpret_cast<const std::byte*>(data.data());
-                complete(std::vector<std::byte>{ptr, ptr + data.size()});
+                const char* ptr = reinterpret_cast<const char*>(data.data());
+                complete(std::vector<char>{ptr, ptr + data.size()});
             };
         }
 
@@ -118,7 +118,7 @@ public:
             callback = new callback_data{create_callback(), true};
             response_bytes(res.handle(), callback);
         }
-        bytes_awaiter(bytes_awaiter&& other) : coro::generic_awaiter<std::vector<std::byte>>{std::move(other)} {
+        bytes_awaiter(bytes_awaiter&& other) : coro::generic_awaiter<std::vector<char>>{std::move(other)} {
             callback->replace(create_callback());
         }
     };
@@ -128,21 +128,21 @@ public:
     bytes_awaiter bytes() { return co_bytes(); } // for convenience
 };
 
-export void fetch(std::string_view url, std::function<void(response)> callback) {
+export void fetch(std::string_view url, std::function<void(response)> callback, const js_object& options = {}) {
     callback_data* data = new callback_data{[f = std::move(callback)](js_handle data, std::string_view) {
         f(response{data});
     }, true};
-    fetch(url.data(), url.size(), data);
+    fetch(url.data(), url.size(), options.handle(), data);
 }
 
 namespace coro {
 struct fetch_awaiter : generic_awaiter<response> {
-    fetch_awaiter(std::string_view url) {
+    fetch_awaiter(std::string_view url, const js_object& options = {}) {
         callback = new callback_data{[this](js_handle data, std::string_view) {
             result = response{data};
             try_resume();
         }, true};
-        webpp::fetch(url.data(), url.size(), callback);
+        webpp::fetch(url.data(), url.size(), options.handle(), callback);
     }
     fetch_awaiter(fetch_awaiter&& other) : generic_awaiter<response>{std::move(other)} {
         callback->replace([this](js_handle data, std::string_view) {

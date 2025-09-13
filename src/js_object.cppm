@@ -31,6 +31,12 @@ void dump_js_objects();
 [[clang::import_module("webpp"), clang::import_name("check_instanceof")]]
 bool check_instanceof(js_handle handle, const char* type, std::size_t len);
 
+[[clang::import_module("webpp"), clang::import_name("create_object")]]
+js_handle create_object();
+
+[[clang::import_module("webpp"), clang::import_name("create_uint8array")]]
+js_handle create_uint8array(const std::uint8_t* data, std::size_t size);
+
 [[clang::import_module("webpp"), clang::import_name("set_property_string")]]
 error_code set_property_string(js_handle handle, const char* name, std::size_t name_len, const char* value, std::size_t value_len);
 
@@ -85,6 +91,9 @@ public:
 
     static std::expected<js_object, error_code> create(js_handle handle) {
         return js_object(handle);
+    }
+    static js_object create() {
+        return js_object(webpp::create_object());
     }
 
     js_object() = default;
@@ -141,6 +150,9 @@ public:
     }
     error_code set_property(std::string_view property, std::nullopt_t) {
         return set_property_undefined(m_handle, property.data(), property.size());
+    }
+    error_code set_property(std::string_view property, const js_object& value) {
+        return set_property_object(m_handle, property.data(), property.size(), value.handle());
     }
 
     template<typename T>
@@ -223,6 +235,10 @@ export class js_property_proxy {
             set_property_undefined(m_handle, m_name.data(), m_name.size());
             return *this;
         }
+        js_property_proxy operator=(const js_object& value) {
+            set_property_object(m_handle, m_name.data(), m_name.size(), value.handle());
+            return *this;
+        }
 
         js_property_proxy operator[](const std::string& name) {
             return js_property_proxy(get_property_object(m_handle, m_name.data(), m_name.size()), name, true);
@@ -259,5 +275,29 @@ js_property_proxy js_object::operator[](const std::string& name) {
 std::expected<js_property_proxy, error_code> js_object::property(const std::string& name) {
     return js_property_proxy(m_handle, name);
 }
+
+export class uint8array : public js_object {
+    public:
+        static std::expected<uint8array, error_code> create(js_handle handle) {
+            if(!check_instanceof(handle, "Uint8Array")) {
+                return std::unexpected(error_code::invalid_type);
+            }
+            return uint8array(handle);
+        }
+        static uint8array create(const std::uint8_t* data, std::size_t size) {
+            return uint8array(webpp::create_uint8array(data, size));
+        }
+        static uint8array create(std::span<const std::uint8_t> data) {
+            return create(data.data(), data.size());
+        }
+        static uint8array create(std::string_view data) {
+            return create(reinterpret_cast<const std::uint8_t*>(data.data()), data.size());
+        }
+
+        uint8array(js_handle handle) : js_object(handle) {}
+        uint8array(const uint8array&) = delete;
+        uint8array(uint8array&& other) : js_object(std::move(other)) {}
+        virtual ~uint8array() {}
+};
 
 }
