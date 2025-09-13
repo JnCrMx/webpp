@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.28.3)
 
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 project(webpp)
 
 if(${PROJECT_NAME}_IS_TOP_LEVEL)
+    set(CMAKE_CXX_STANDARD 23)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
     set(CMAKE_SYSTEM_NAME WASI)
     set(CMAKE_SYSTEM_VERSION 1)
     set(CMAKE_SYSTEM_PROCESSOR wasm32)
@@ -24,7 +24,7 @@ if(${PROJECT_NAME}_BUILD_STD_MODULE)
     add_library(${stdModule} STATIC)
     target_sources(${stdModule} PUBLIC FILE_SET CXX_MODULES BASE_DIRS /usr/lib/llvm-19/share/libc++/v1/
         FILES /usr/lib/llvm-19/share/libc++/v1/std.cppm)
-    target_compile_features(${stdModule} PUBLIC cxx_std_26)
+    target_compile_features(${stdModule} PUBLIC cxx_std_23)
     target_compile_options(${stdModule} PRIVATE -Wno-reserved-identifier)
     target_compile_options(${stdModule} PRIVATE -fno-rtti -fno-exceptions)
     target_compile_definitions(${stdModule} PRIVATE _LIBCPP_CSETJMP _LIBCPP_CSIGNAL)
